@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -47,9 +48,16 @@
             color: var(--text-primary);
         }
 
+        .controls-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
         .controls {
             display: flex;
-            gap: 1rem;
+            gap: 0.5rem;
+            flex-wrap: wrap;
         }
 
         input[type="text"] {
@@ -58,7 +66,8 @@
             border: 1px solid #334155;
             background: #0f172a;
             color: white;
-            min-width: 300px;
+            flex: 1;
+            min-width: 200px;
         }
 
         button {
@@ -70,6 +79,7 @@
             font-weight: 600;
             cursor: pointer;
             transition: opacity 0.2s;
+            white-space: nowrap;
         }
 
         button:hover {
@@ -78,7 +88,7 @@
 
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
             gap: 1.5rem;
         }
 
@@ -103,11 +113,27 @@
             align-items: flex-start;
         }
 
-        .url {
-            font-size: 1.1rem;
-            font-weight: 600;
-            word-break: break-all;
+        .name {
+            font-size: 1.25rem;
+            font-weight: 700;
             color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .usage {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .url-sub {
+            font-size: 0.75rem;
+            font-family: monospace;
+            color: var(--text-secondary);
+            word-break: break-all;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
         }
 
         .status-badge {
@@ -125,25 +151,30 @@
             background: rgba(239, 68, 68, 0.1);
             color: var(--error);
         }
-        
+
         .status-badge.pending {
             background: rgba(148, 163, 184, 0.1);
             color: var(--text-secondary);
         }
 
-        .stats {
+        .stats-grid {
             margin-top: auto;
             border-top: 1px solid #334155;
             padding-top: 1rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
         }
 
         .stat-label {
-            font-size: 0.875rem;
+            font-size: 0.75rem;
             color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .stat-value {
-            font-size: 1.5rem;
+            font-size: 1.25rem;
             font-weight: 700;
             color: var(--text-primary);
         }
@@ -153,9 +184,11 @@
             color: var(--text-secondary);
             padding: 0.25rem;
             font-size: 1.25rem;
+            line-height: 1;
         }
-        
+
         .delete-btn:hover {
+            opacity: 1;
             color: var(--error);
         }
 
@@ -172,18 +205,91 @@
             opacity: 0;
             transition: opacity 0.3s;
         }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .modal-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .modal-form label {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .icon-btn {
+            background: transparent;
+            color: var(--text-secondary);
+            padding: 0.5rem;
+            font-size: 1.25rem;
+            line-height: 1;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .icon-btn.delete:hover {
+            color: var(--error);
+        }
     </style>
+
 </head>
+
 <body>
     <div class="container">
         <header>
             <h1>Environment Tracker</h1>
-            <div class="controls">
-                <input type="text" id="urlInput" placeholder="https://example.com" />
-                <button onclick="addUrl()">Find & Track</button>
+            <div class="controls-wrapper">
+                <div class="controls"><input type="text" id="urlInput" placeholder="URL (https://example.com)" /><input
+                        type="text" id="nameInput" placeholder="Name (e.g. Production)" /><input type="text"
+                        id="usageInput" placeholder="Usage (e.g. QA Testing)" /><button onclick="addUrl()">Add
+                        Environment</button></div>
             </div>
         </header>
-
         <div id="grid" class="grid">
             <!-- Cards go here -->
         </div>
@@ -192,6 +298,28 @@
     <!-- Simple Toast -->
     <div id="toast" class="toast">Action completed</div>
 
+    <!-- Edit Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h2>Edit Environment</h2>
+            <div class="modal-form">
+                <label>
+                    Name
+                    <input type="text" id="editName" />
+                </label>
+                <label>
+                    Usage
+                    <input type="text" id="editUsage" />
+                </label>
+                <input type="hidden" id="editUrlHidden" />
+                <div class="modal-actions">
+                    <button onclick="closeModal()"
+                        style="background: transparent; border: 1px solid #334155;">Cancel</button>
+                    <button onclick="saveEdit()">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <script>
         const API_BASE = 'http://localhost:3000/api';
 
@@ -203,20 +331,30 @@
         }
 
         async function addUrl() {
-            const input = document.getElementById('urlInput');
-            const url = input.value.trim();
+            const urlInput = document.getElementById('urlInput');
+            const nameInput = document.getElementById('nameInput');
+            const usageInput = document.getElementById('usageInput');
+
+            const url = urlInput.value.trim();
+            const name = nameInput.value.trim();
+            const usage = usageInput.value.trim();
+
             if (!url) return;
 
             try {
                 // Pre-validate format
-                new URL(url); 
-                
+                new URL(url);
+
                 await fetch(`${API_BASE}/urls`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url })
+                    body: JSON.stringify({ url, name, usage })
                 });
-                input.value = '';
+
+                urlInput.value = '';
+                nameInput.value = '';
+                usageInput.value = '';
+
                 fetchUrls();
             } catch (e) {
                 alert('Invalid URL');
@@ -224,13 +362,39 @@
         }
 
         async function removeUrl(url) {
-            if(!confirm(`Remove ${url}?`)) return;
-            
+            if (!confirm(`Remove ${url}?`)) return;
+
             await fetch(`${API_BASE}/urls`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url })
             });
+            fetchUrls();
+        }
+
+        function editUrl(url, name, usage) {
+            document.getElementById('editUrlHidden').value = url;
+            document.getElementById('editName').value = name;
+            document.getElementById('editUsage').value = usage;
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        async function saveEdit() {
+            const url = document.getElementById('editUrlHidden').value;
+            const name = document.getElementById('editName').value;
+            const usage = document.getElementById('editUsage').value;
+
+            await fetch(`${API_BASE}/urls`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url, name, usage })
+            });
+
+            closeModal();
             fetchUrls();
         }
 
@@ -250,36 +414,34 @@
 
         async function updateStats() {
             // First fetch global stats (days up) from log
-            // Note: In a real app we might want to fetch stats once and then update locally
-            // But here we'll just re-fetch stats occasionally
-            // For now, let's just trigger checks for live status
-            
+            const statsRes = await fetch(`${API_BASE}/stats`);
+            const stats = await statsRes.json();
+
             const cards = document.querySelectorAll('.card');
-            
+
             // Loop through each card to check live status
             cards.forEach(async (card) => {
                 const url = card.dataset.url;
-                const badge = card.querySelector('.status-badge');
-                
-                badge.className = 'status-badge pending';
-                badge.textContent = 'Checking...';
-                
-                const status = await checkStatus(url);
-                
-                badge.className = `status-badge ${status.toLowerCase()}`;
-                badge.textContent = status;
-            });
-            
-            // Also update "Days Up" counter
-            // We need an endpoint for this ideally, or parse log
-            const statsRes = await fetch(`${API_BASE}/stats`);
-            const stats = await statsRes.json();
-            
-            cards.forEach(card => {
-                const url = card.dataset.url;
+
+                // Update stats immediately if available
                 if (stats[url]) {
                     const daysEl = card.querySelector('.days-count');
+                    const lastOnlineEl = card.querySelector('.last-online');
+
                     if (daysEl) daysEl.textContent = stats[url].daysUp || 0;
+                    if (lastOnlineEl) lastOnlineEl.textContent = stats[url].lastOnline || '-';
+                }
+
+                // Check live status
+                const badge = card.querySelector('.status-badge');
+                if (badge) {
+                    badge.className = 'status-badge pending';
+                    badge.textContent = 'Checking...';
+
+                    const status = await checkStatus(url);
+
+                    badge.className = `status-badge ${status.toLowerCase()}`;
+                    badge.textContent = status;
                 }
             });
         }
@@ -288,22 +450,43 @@
             const grid = document.getElementById('grid');
             grid.innerHTML = '';
 
-            urls.forEach(url => {
+            urls.forEach(item => {
+                const url = item.url;
+                const name = item.name || '';
+                const usage = item.usage || '';
+
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.dataset.url = url;
-                
+
+                // Escape strings for onclick
+                const safeName = name.replace(/'/g, "\\'");
+                const safeUsage = usage.replace(/'/g, "\\'");
+
                 card.innerHTML = `
                     <div class="card-header">
-                        <div class="url">${url}</div>
-                        <button class="delete-btn" onclick="removeUrl('${url}')">×</button>
+                        <div>
+                            <div class="name">${name || url}</div>
+                            <div class="usage">${usage}</div>
+                            <div class="url-sub">${url}</div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="icon-btn" onclick="editUrl('${url}', '${safeName}', '${safeUsage}')" title="Edit">✎</button>
+                            <button class="icon-btn delete" onclick="removeUrl('${url}')" title="Remove">×</button>
+                        </div>
                     </div>
-                    <div>
+                    <div class="status-row">
                         <span class="status-badge pending">Unknown</span>
                     </div>
-                    <div class="stats">
-                        <div class="stat-label">Days Up</div>
-                        <div class="stat-value days-count">0</div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">Days Up</div>
+                            <div class="stat-value days-count">0</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Last Online</div>
+                            <div class="stat-value last-online">-</div>
+                        </div>
                     </div>
                 `;
                 grid.appendChild(card);
@@ -317,9 +500,10 @@
         setInterval(() => {
             updateStats();
         }, 600000); // 10 mins
-        
+
         // Also refresh stats now
         setTimeout(updateStats, 1000); // Initial check after load
     </script>
 </body>
+
 </html>

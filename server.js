@@ -54,12 +54,19 @@ const writeLog = async (data) => {
 // API: Get URLs
 app.get('/api/urls', (req, res) => {
     const config = JSON.parse(fs.readFileSync(CONFIG_FILE));
-    res.json(config.urls);
+    // Migrate manually on read if needed, or just return normalized list
+    const normalizedUrls = config.urls.map(u => {
+        if (typeof u === 'string') {
+            return { url: u, name: '', usage: '' };
+        }
+        return u;
+    });
+    res.json(normalizedUrls);
 });
 
 // API: Add URL
 app.post('/api/urls', (req, res) => {
-    const { url } = req.body;
+    const { url, name, usage } = req.body;
     if (!url) return res.status(400).send('URL required');
 
     // Validate simple URL
@@ -70,20 +77,85 @@ app.post('/api/urls', (req, res) => {
     }
 
     const config = JSON.parse(fs.readFileSync(CONFIG_FILE));
-    if (!config.urls.includes(url)) {
-        config.urls.push(url);
+
+    // Check for duplicates. Config.urls can contain strings or objects.
+    const exists = config.urls.some(u => {
+        const existingUrl = typeof u === 'string' ? u : u.url;
+        return existingUrl === url;
+    });
+
+    if (!exists) {
+        config.urls.push({ url, name: name || '', usage: usage || '' });
         fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
     }
-    res.json(config.urls);
+
+    // Return normalized list
+    const normalizedUrls = config.urls.map(u => {
+        if (typeof u === 'string') {
+            return { url: u, name: '', usage: '' };
+        }
+        return u;
+    });
+    res.json(normalizedUrls);
 });
 
 // API: Remove URL
 app.delete('/api/urls', (req, res) => {
     const { url } = req.body;
     const config = JSON.parse(fs.readFileSync(CONFIG_FILE));
-    config.urls = config.urls.filter(u => u !== url);
+
+    config.urls = config.urls.filter(u => {
+        const existingUrl = typeof u === 'string' ? u : u.url;
+        return existingUrl !== url;
+    });
+
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
-    res.json(config.urls);
+
+    // Return normalized list
+    const normalizedUrls = config.urls.map(u => {
+        if (typeof u === 'string') {
+            return { url: u, name: '', usage: '' };
+        }
+        return u;
+    });
+    res.json(normalizedUrls);
+});
+
+// API: Edit URL
+app.put('/api/urls', (req, res) => {
+    const { url, name, usage } = req.body;
+    if (!url) return res.status(400).send('URL required');
+
+    const config = JSON.parse(fs.readFileSync(CONFIG_FILE));
+
+    // Config.urls can contain strings or objects. 
+    // We must find and update the object, or convert string to object.
+    let found = false;
+    config.urls = config.urls.map(u => {
+        const currentUrl = typeof u === 'string' ? u : u.url;
+        if (currentUrl === url) {
+            found = true;
+            return {
+                url: currentUrl,
+                name: name !== undefined ? name : (typeof u === 'object' ? u.name : ''),
+                usage: usage !== undefined ? usage : (typeof u === 'object' ? u.usage : '')
+            };
+        }
+        return u;
+    });
+
+    if (!found) return res.status(404).send('URL not found');
+
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+
+    // Return normalized list
+    const normalizedUrls = config.urls.map(u => {
+        if (typeof u === 'string') {
+            return { url: u, name: '', usage: '' };
+        }
+        return u;
+    });
+    res.json(normalizedUrls);
 });
 
 // API: Check specific URL (called by frontend)
@@ -118,20 +190,26 @@ app.get('/api/stats', (req, res) => {
             const stats = {};
             results.forEach(row => {
                 if (!row.URL) return;
-                if (!stats[row.URL]) stats[row.URL] = { days: new Set() };
+                if (!stats[row.URL]) stats[row.URL] = { days: new Set(), lastOnline: null };
 
                 const date = row.DATE;
                 const status = row.STATUS;
 
                 if (status === 'UP') {
                     stats[row.URL].days.add(date);
+
+                    // track max date
+                    if (!stats[row.URL].lastOnline || date > stats[row.URL].lastOnline) {
+                        stats[row.URL].lastOnline = date;
+                    }
                 }
             });
 
             const response = {};
             Object.keys(stats).forEach(url => {
                 response[url] = {
-                    daysUp: stats[url].days.size
+                    daysUp: stats[url].days.size,
+                    lastOnline: stats[url].lastOnline
                 };
             });
 
