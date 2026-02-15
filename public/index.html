@@ -398,50 +398,40 @@
             fetchUrls();
         }
 
-        async function checkStatus(url) {
-            try {
-                const res = await fetch(`${API_BASE}/check`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url })
-                });
-                const data = await res.json();
-                return data.status; // 'UP' or 'DOWN'
-            } catch (e) {
-                return 'DOWN';
-            }
-        }
-
         async function updateStats() {
-            // First fetch global stats (days up) from log
+            // Fetch stats (days up)
             const statsRes = await fetch(`${API_BASE}/stats`);
             const stats = await statsRes.json();
 
+            // Fetch current live status (from server memory)
+            const statusRes = await fetch(`${API_BASE}/status`);
+            const statuses = await statusRes.json();
+
             const cards = document.querySelectorAll('.card');
 
-            // Loop through each card to check live status
-            cards.forEach(async (card) => {
+            cards.forEach(card => {
                 const url = card.dataset.url;
 
-                // Update stats immediately if available
+                // Update days up / last online
                 if (stats[url]) {
                     const daysEl = card.querySelector('.days-count');
                     const lastOnlineEl = card.querySelector('.last-online');
-
                     if (daysEl) daysEl.textContent = stats[url].daysUp || 0;
                     if (lastOnlineEl) lastOnlineEl.textContent = stats[url].lastOnline || '-';
                 }
 
-                // Check live status
+                // Update live status
                 const badge = card.querySelector('.status-badge');
                 if (badge) {
-                    badge.className = 'status-badge pending';
-                    badge.textContent = 'Checking...';
+                    const currentStatus = statuses[url] || 'PENDING';
 
-                    const status = await checkStatus(url);
-
-                    badge.className = `status-badge ${status.toLowerCase()}`;
-                    badge.textContent = status;
+                    if (currentStatus === 'PENDING') {
+                        badge.className = 'status-badge pending';
+                        badge.textContent = 'Checking...';
+                    } else {
+                        badge.className = `status-badge ${currentStatus.toLowerCase()}`;
+                        badge.textContent = currentStatus;
+                    }
                 }
             });
         }

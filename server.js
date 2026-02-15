@@ -65,7 +65,7 @@ app.get('/api/urls', (req, res) => {
 });
 
 // API: Add URL
-app.post('/api/urls', (req, res) => {
+app.post('/api/urls', async (req, res) => {
     const { url, name, usage } = req.body;
     if (!url) return res.status(400).send('URL required');
 
@@ -87,6 +87,9 @@ app.post('/api/urls', (req, res) => {
     if (!exists) {
         config.urls.push({ url, name: name || '', usage: usage || '' });
         fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+
+        // Trigger immediate check in background so it doesn't stay "Checking..."
+        await checkUrl(url);
     }
 
     // Return normalized list
@@ -158,24 +161,69 @@ app.put('/api/urls', (req, res) => {
     res.json(normalizedUrls);
 });
 
-// API: Check specific URL (called by frontend)
+// In-memory store for latest status
+const lastCheckResults = {};
+
+// Helper: Check single URL
+const checkUrl = async (url) => {
+    const timestamp = new Date().toISOString();
+    const date = new Date().toISOString().split('T')[0];
+    let status = 'DOWN';
+
+    try {
+        await axios.get(url, {
+            timeout: 10000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+        });
+        status = 'UP';
+    } catch (error) {
+        // Log detailed error for debugging if needed, but keep status simple
+        // console.error(`Check failed for ${url}: ${error.message}`);
+        status = 'DOWN';
+    }
+
+    // Log to CSV
+    await writeLog([{ timestamp, date, url, status }]);
+
+    // Update memory
+    lastCheckResults[url] = status;
+    return status;
+};
+
+// Start background job
+const checkAllUrls = async () => {
+    console.log('Running background check...');
+    if (!fs.existsSync(CONFIG_FILE)) return;
+
+    const config = JSON.parse(fs.readFileSync(CONFIG_FILE));
+    for (const item of config.urls) {
+        const url = typeof item === 'string' ? item : item.url;
+        await checkUrl(url);
+    }
+    console.log('Background check complete.');
+};
+
+// Schedule: Run every 10 minutes (600000 ms)
+setInterval(checkAllUrls, 600000);
+
+// Run once on startup after short delay
+setTimeout(checkAllUrls, 5000);
+
+
+// API: Get Current Status (from memory)
+app.get('/api/status', (req, res) => {
+    res.json(lastCheckResults);
+});
+
+// API: Manual Check (Optional, forces a check now)
 app.post('/api/check', async (req, res) => {
     const { url } = req.body;
     if (!url) return res.status(400).send('URL required');
 
-    const timestamp = new Date().toISOString();
-    const date = new Date().toISOString().split('T')[0];
-
-    try {
-        await axios.get(url, { timeout: 5000 });
-        // Success
-        await writeLog([{ timestamp, date, url, status: 'UP' }]);
-        res.json({ status: 'UP' });
-    } catch (error) {
-        // Fail
-        await writeLog([{ timestamp, date, url, status: 'DOWN' }]);
-        res.json({ status: 'DOWN' });
-    }
+    const status = await checkUrl(url);
+    res.json({ status });
 });
 
 // API: Get Stats (Consecutive Days Up, etc)
@@ -190,6 +238,7 @@ app.get('/api/stats', (req, res) => {
             const stats = {};
             results.forEach(row => {
                 if (!row.URL) return;
+                // Initialize stats object for URL if not exists
                 if (!stats[row.URL]) stats[row.URL] = { days: new Set(), lastOnline: null };
 
                 const date = row.DATE;
@@ -197,7 +246,6 @@ app.get('/api/stats', (req, res) => {
 
                 if (status === 'UP') {
                     stats[row.URL].days.add(date);
-
                     // track max date
                     if (!stats[row.URL].lastOnline || date > stats[row.URL].lastOnline) {
                         stats[row.URL].lastOnline = date;

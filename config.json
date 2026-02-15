@@ -1,6 +1,24 @@
 {
   "urls": [
-    "https://google.com",
-    "https://dafasdfaasdfajsadf.com"
+    {
+      "url": "https://google.com",
+      "name": "Google",
+      "usage": "Test 1"
+    },
+    {
+      "url": "https://dafasdfaasdfajsadf.com",
+      "name": "Test Website",
+      "usage": "to test negative"
+    },
+    {
+      "url": "https://www.natwestgroup.com/",
+      "name": "RBS",
+      "usage": ""
+    },
+    {
+      "url": "https://rbsconnect.rbspeople.com/vpn/index.html",
+      "name": "people connect",
+      "usage": ""
+    }
   ]
 }
