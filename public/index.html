@@ -511,6 +511,52 @@
             });
         }
 
+        function closeHistoryModal() {
+            document.getElementById('historyModal').style.display = 'none';
+        }
+
+        async function viewHistory(url) {
+            document.getElementById('historyTitle').textContent = `History: ${url}`;
+            const tbody = document.getElementById('historyBody');
+            tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+            document.getElementById('historyModal').style.display = 'flex';
+
+            try {
+                const res = await fetch(`${API_BASE}/history?url=${encodeURIComponent(url)}`);
+                const history = await res.json();
+
+                tbody.innerHTML = '';
+                if (history.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4">No history available</td></tr>';
+                    return;
+                }
+
+                history.forEach(block => {
+                    const tr = document.createElement('tr');
+
+                    const start = new Date(block.start);
+                    const end = new Date(block.end);
+                    const durationMs = end - start;
+                    const durationMins = Math.round(durationMs / 60000); // minutes
+
+                    let durationText = durationMins < 60 ? `${durationMins}m` : `${Math.round(durationMins / 60)}h ${durationMins % 60}m`;
+                    if (durationMins === 0) durationText = "< 1m";
+
+                    const statusClass = block.status.toLowerCase();
+
+                    tr.innerHTML = `
+                        <td><span class="history-status ${statusClass}">${block.status}</span></td>
+                        <td>${start.toLocaleString()}</td>
+                        <td>${end.toLocaleString()}</td>
+                        <td>${durationText}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="4">Error loading history</td></tr>';
+            }
+        }
+
         function renderGrid(urls) {
             const grid = document.getElementById('grid');
             grid.innerHTML = '';
@@ -536,6 +582,7 @@
                             <div class="url-sub">${url}</div>
                         </div>
                         <div class="card-actions">
+                            <button class="icon-btn" onclick="viewHistory('${url}')" title="History">🕒</button>
                             <button class="icon-btn" onclick="editUrl('${url}', '${safeName}', '${safeUsage}')" title="Edit">✎</button>
                             <button class="icon-btn delete" onclick="removeUrl('${url}')" title="Remove">×</button>
                         </div>
