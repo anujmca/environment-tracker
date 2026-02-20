@@ -275,6 +275,56 @@
         .icon-btn.delete:hover {
             color: var(--error);
         }
+
+        /* History Table */
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            color: var(--text-primary);
+        }
+
+        .history-table th,
+        .history-table td {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid #334155;
+            font-size: 0.875rem;
+        }
+
+        .history-table th {
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+
+        .history-status {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+
+        .history-status.up {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .history-status.down {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error);
+        }
+
+        .modal-content.large {
+            max-width: 800px;
+        }
+
+        .history-scroll {
+            max-height: 400px;
+            overflow-y: auto;
+        }
     </style>
 
 </head>
@@ -317,6 +367,31 @@
                         style="background: transparent; border: 1px solid #334155;">Cancel</button>
                     <button onclick="saveEdit()">Save Changes</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div id="historyModal" class="modal">
+        <div class="modal-content large">
+            <h2 id="historyTitle">History</h2>
+            <div class="history-scroll">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Start Time</th>
+                            <th>End Time</th>
+                            <th>Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody">
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-actions">
+                <button onclick="closeHistoryModal()"
+                    style="background: transparent; border: 1px solid #334155;">Close</button>
             </div>
         </div>
     </div>

@@ -265,6 +265,53 @@ app.get('/api/stats', (req, res) => {
         });
 });
 
+// API: Get History (Blocks of continuity)
+app.get('/api/history', (req, res) => {
+    const { url } = req.query;
+    if (!url) return res.status(400).send('URL required');
+
+    if (!fs.existsSync(DATA_FILE)) return res.json([]);
+
+    const results = [];
+    fs.createReadStream(DATA_FILE)
+        .pipe(csv())
+        .on('data', (data) => {
+            if (data.URL === url) {
+                results.push(data);
+            }
+        })
+        .on('end', () => {
+            // Sort by timestamp just in case (though log is append-only)
+            results.sort((a, b) => new Date(a.TIMESTAMP) - new Date(b.TIMESTAMP));
+
+            const history = [];
+            let currentBlock = null;
+
+            results.forEach((row) => {
+                const timestamp = row.TIMESTAMP;
+                const status = row.STATUS;
+
+                if (!currentBlock) {
+                    currentBlock = { status, start: timestamp, end: timestamp };
+                } else if (currentBlock.status !== status) {
+                    // Status changed, push old block and start new
+                    history.push(currentBlock);
+                    currentBlock = { status, start: timestamp, end: timestamp };
+                } else {
+                    // Same status, extend end time
+                    currentBlock.end = timestamp;
+                }
+            });
+
+            if (currentBlock) {
+                history.push(currentBlock);
+            }
+
+            // Reverse to show latest first
+            res.json(history.reverse());
+        });
+});
+
 app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
 });
