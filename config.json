@@ -4,37 +4,37 @@
       "url": "https://google.com",
       "name": "Google",
       "usage": "Test 1",
-      "interval": 1
+      "interval": 10
     },
     {
       "url": "https://dafasdfaasdfajsadf.com",
       "name": "Test Website",
       "usage": "to test negative",
-      "interval": 1
+      "interval": 10
     },
     {
       "url": "https://www.natwestgroup.com/",
       "name": "RBS",
       "usage": "",
-      "interval": 1
+      "interval": 10
     },
     {
       "url": "https://rbsconnect.rbspeople.com/vpn/index.html",
       "name": "people connect",
       "usage": "",
-      "interval": 1
+      "interval": 10
     },
     {
       "url": "https://newtesturlnotworkingdasfda.com",
       "name": "New Test Website",
       "usage": "to test different frequency",
-      "interval": 1
+      "interval": 10
     },
     {
       "url": "https://www.yahoo.com/",
       "name": "Yahoo!",
       "usage": "positive testing of frequency",
-      "interval": 1
+      "interval": 10
     }
   ]
 }
