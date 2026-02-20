@@ -416,7 +416,15 @@
                     </tbody>
                 </table>
             </div>
-            <div class="modal-actions">
+            <div class="modal-actions" style="justify-content: space-between;">
+                <div>
+                    <button onclick="downloadHistoryCsv()"
+                        style="background: transparent; border: 1px solid var(--accent); color: var(--accent); margin-right: 0.5rem;">Download
+                        History (CSV)</button>
+                    <button onclick="downloadRawLogsCsv()"
+                        style="background: transparent; border: 1px solid var(--accent); color: var(--accent);">Download
+                        Raw Logs (CSV)</button>
+                </div>
                 <button onclick="closeHistoryModal()"
                     style="background: transparent; border: 1px solid #334155;">Close</button>
             </div>
@@ -424,6 +432,7 @@
     </div>
     <script>
         const API_BASE = 'http://localhost:3000/api';
+        let currentHistoryUrl = '';
 
         async function fetchUrls() {
             const res = await fetch(`${API_BASE}/urls`);
@@ -563,9 +572,11 @@
 
         function closeHistoryModal() {
             document.getElementById('historyModal').style.display = 'none';
+            currentHistoryUrl = '';
         }
 
         async function viewHistory(url) {
+            currentHistoryUrl = url;
             document.getElementById('historyTitle').textContent = `History: ${url}`;
             const tbody = document.getElementById('historyBody');
             tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
@@ -604,6 +615,56 @@
                 });
             } catch (e) {
                 tbody.innerHTML = '<tr><td colspan="4">Error loading history</td></tr>';
+            }
+        }
+
+        function triggerDownload(filename, csvContent) {
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        async function downloadHistoryCsv() {
+            if (!currentHistoryUrl) return;
+            try {
+                const res = await fetch(`${API_BASE}/history?url=${encodeURIComponent(currentHistoryUrl)}`);
+                const history = await res.json();
+                if (history.length === 0) return alert('No history to download');
+
+                let csvContent = "Status,Start Time,End Time\n";
+                history.forEach(block => {
+                    csvContent += `${block.status},"${new Date(block.start).toLocaleString()}","${new Date(block.end).toLocaleString()}"\n`;
+                });
+
+                const filename = `history_${currentHistoryUrl.replace(/[^a-z0-9]/gi, '_')}.csv`;
+                triggerDownload(filename, csvContent);
+            } catch (e) {
+                alert('Failed to download history');
+            }
+        }
+
+        async function downloadRawLogsCsv() {
+            if (!currentHistoryUrl) return;
+            try {
+                const res = await fetch(`${API_BASE}/logs?url=${encodeURIComponent(currentHistoryUrl)}`);
+                const logs = await res.json();
+                if (logs.length === 0) return alert('No logs to download');
+
+                let csvContent = "Timestamp,Date,URL,Status\n";
+                logs.forEach(log => {
+                    csvContent += `${log.TIMESTAMP},${log.DATE},${log.URL},${log.STATUS}\n`;
+                });
+
+                const filename = `raw_logs_${currentHistoryUrl.replace(/[^a-z0-9]/gi, '_')}.csv`;
+                triggerDownload(filename, csvContent);
+            } catch (e) {
+                alert('Failed to download raw logs');
             }
         }
 

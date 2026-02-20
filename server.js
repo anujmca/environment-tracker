@@ -326,6 +326,27 @@ app.get('/api/history', (req, res) => {
         });
 });
 
+// API: Get Raw Logs
+app.get('/api/logs', (req, res) => {
+    const { url } = req.query;
+    if (!url) return res.status(400).send('URL required');
+
+    if (!fs.existsSync(DATA_FILE)) return res.json([]);
+
+    const results = [];
+    fs.createReadStream(DATA_FILE)
+        .pipe(csv())
+        .on('data', (data) => {
+            if (data.URL === url) {
+                results.push(data);
+            }
+        })
+        .on('end', () => {
+            results.sort((a, b) => new Date(b.TIMESTAMP) - new Date(a.TIMESTAMP));
+            res.json(results);
+        });
+});
+
 app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
 });
