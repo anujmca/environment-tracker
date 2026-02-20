@@ -60,7 +60,8 @@
             flex-wrap: wrap;
         }
 
-        input[type="text"] {
+        input[type="text"],
+        input[type="number"] {
             padding: 0.75rem 1rem;
             border-radius: 8px;
             border: 1px solid #334155;
@@ -113,17 +114,21 @@
             align-items: flex-start;
         }
 
+        .card-title-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
         .name {
             font-size: 1.25rem;
             font-weight: 700;
             color: var(--text-primary);
-            margin-bottom: 0.25rem;
         }
 
         .usage {
             font-size: 0.875rem;
             color: var(--text-secondary);
-            margin-bottom: 0.5rem;
         }
 
         .url-sub {
@@ -132,8 +137,18 @@
             color: var(--text-secondary);
             word-break: break-all;
             background: rgba(0, 0, 0, 0.2);
-            padding: 0.25rem 0.5rem;
+            padding: 0.5rem;
             border-radius: 4px;
+            margin-top: 0.5rem;
+            width: 100%;
+        }
+
+        .interval-sub {
+            font-size: 0.75rem;
+            color: var(--accent);
+            font-weight: 600;
+            margin-top: 0.25rem;
+            width: 100%;
         }
 
         .status-badge {
@@ -334,10 +349,17 @@
         <header>
             <h1>Environment Tracker</h1>
             <div class="controls-wrapper">
-                <div class="controls"><input type="text" id="urlInput" placeholder="URL (https://example.com)" /><input
-                        type="text" id="nameInput" placeholder="Name (e.g. Production)" /><input type="text"
-                        id="usageInput" placeholder="Usage (e.g. QA Testing)" /><button onclick="addUrl()">Add
-                        Environment</button></div>
+                <div class="controls">
+                    <input type="text" id="urlInput" placeholder="URL (https://example.com)" />
+                    <input type="text" id="nameInput" placeholder="Name (e.g. Production)" />
+                    <input type="text" id="usageInput" placeholder="Usage (e.g. QA Testing)" />
+                    <input type="number" id="intervalInput" placeholder="Interval (mins)" value="10" min="1"
+                        style="width: 120px;" />
+                    <button onclick="addUrl()">Add Environment</button>
+                    <button onclick="setGlobalInterval()"
+                        style="background: transparent; border: 1px solid var(--accent); color: var(--accent);">Apply
+                        Interval to All</button>
+                </div>
             </div>
         </header>
         <div id="grid" class="grid">
@@ -360,6 +382,10 @@
                 <label>
                     Usage
                     <input type="text" id="editUsage" />
+                </label>
+                <label>
+                    Check Interval (mins)
+                    <input type="number" id="editInterval" min="1" value="10" />
                 </label>
                 <input type="hidden" id="editUrlHidden" />
                 <div class="modal-actions">
@@ -409,10 +435,12 @@
             const urlInput = document.getElementById('urlInput');
             const nameInput = document.getElementById('nameInput');
             const usageInput = document.getElementById('usageInput');
+            const intervalInput = document.getElementById('intervalInput');
 
             const url = urlInput.value.trim();
             const name = nameInput.value.trim();
             const usage = usageInput.value.trim();
+            const interval = intervalInput.value ? parseInt(intervalInput.value) : 10;
 
             if (!url) return;
 
@@ -423,16 +451,35 @@
                 await fetch(`${API_BASE}/urls`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url, name, usage })
+                    body: JSON.stringify({ url, name, usage, interval })
                 });
 
                 urlInput.value = '';
                 nameInput.value = '';
                 usageInput.value = '';
+                // Keep the interval value in case they want to add more with same interval
 
                 fetchUrls();
             } catch (e) {
                 alert('Invalid URL');
+            }
+        }
+
+        async function setGlobalInterval() {
+            const intervalInput = document.getElementById('intervalInput');
+            const interval = intervalInput.value ? parseInt(intervalInput.value) : 10;
+
+            if (!confirm(`Are you sure you want to set the check interval for ALL environments to ${interval} minutes?`)) return;
+
+            try {
+                await fetch(`${API_BASE}/urls/intervals/all`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ interval })
+                });
+                fetchUrls();
+            } catch (e) {
+                alert('Failed to update intervals');
             }
         }
 
@@ -447,10 +494,11 @@
             fetchUrls();
         }
 
-        function editUrl(url, name, usage) {
+        function editUrl(url, name, usage, interval) {
             document.getElementById('editUrlHidden').value = url;
             document.getElementById('editName').value = name;
             document.getElementById('editUsage').value = usage;
+            document.getElementById('editInterval').value = interval || 10;
             document.getElementById('editModal').style.display = 'flex';
         }
 
@@ -462,11 +510,12 @@
             const url = document.getElementById('editUrlHidden').value;
             const name = document.getElementById('editName').value;
             const usage = document.getElementById('editUsage').value;
+            const interval = document.getElementById('editInterval').value;
 
             await fetch(`${API_BASE}/urls`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url, name, usage })
+                body: JSON.stringify({ url, name, usage, interval })
             });
 
             closeModal();
@@ -565,6 +614,7 @@
                 const url = item.url;
                 const name = item.name || '';
                 const usage = item.usage || '';
+                const interval = item.interval || 10;
 
                 const card = document.createElement('div');
                 card.className = 'card';
@@ -576,18 +626,19 @@
 
                 card.innerHTML = `
                     <div class="card-header">
-                        <div>
+                        <div class="card-title-group">
                             <div class="name">${name || url}</div>
                             <div class="usage">${usage}</div>
-                            <div class="url-sub">${url}</div>
                         </div>
                         <div class="card-actions">
                             <button class="icon-btn" onclick="viewHistory('${url}')" title="History">🕒</button>
-                            <button class="icon-btn" onclick="editUrl('${url}', '${safeName}', '${safeUsage}')" title="Edit">✎</button>
+                            <button class="icon-btn" onclick="editUrl('${url}', '${safeName}', '${safeUsage}', ${interval})" title="Edit">✎</button>
                             <button class="icon-btn delete" onclick="removeUrl('${url}')" title="Remove">×</button>
                         </div>
                     </div>
-                    <div class="status-row">
+                    <div class="url-sub">${url}</div>
+                    <div class="interval-sub">↻ Checks every ${interval} minute${interval !== 1 ? 's' : ''}</div>
+                    <div class="status-row" style="margin-top: 0.5rem;">
                         <span class="status-badge pending">Unknown</span>
                     </div>
                     <div class="stats-grid">
@@ -608,10 +659,10 @@
         // Init
         fetchUrls();
 
-        // Auto-refresh every 10 minutes
+        // Auto-refresh every 1 minute
         setInterval(() => {
             updateStats();
-        }, 600000); // 10 mins
+        }, 60000); // 1 min
 
         // Also refresh stats now
         setTimeout(updateStats, 1000); // Initial check after load

@@ -51,22 +51,25 @@ const writeLog = async (data) => {
     await csvWriter.writeRecords(data);
 };
 
+// Helper to normalize URLs
+const getNormalizedUrls = (config) => {
+    return config.urls.map(u => {
+        if (typeof u === 'string') {
+            return { url: u, name: '', usage: '', interval: 10 };
+        }
+        return { ...u, interval: u.interval || 10 };
+    });
+};
+
 // API: Get URLs
 app.get('/api/urls', (req, res) => {
     const config = JSON.parse(fs.readFileSync(CONFIG_FILE));
-    // Migrate manually on read if needed, or just return normalized list
-    const normalizedUrls = config.urls.map(u => {
-        if (typeof u === 'string') {
-            return { url: u, name: '', usage: '' };
-        }
-        return u;
-    });
-    res.json(normalizedUrls);
+    res.json(getNormalizedUrls(config));
 });
 
 // API: Add URL
 app.post('/api/urls', async (req, res) => {
-    const { url, name, usage } = req.body;
+    const { url, name, usage, interval } = req.body;
     if (!url) return res.status(400).send('URL required');
 
     // Validate simple URL
@@ -85,21 +88,19 @@ app.post('/api/urls', async (req, res) => {
     });
 
     if (!exists) {
-        config.urls.push({ url, name: name || '', usage: usage || '' });
+        config.urls.push({
+            url,
+            name: name || '',
+            usage: usage || '',
+            interval: interval ? parseInt(interval) : 10
+        });
         fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
 
         // Trigger immediate check in background so it doesn't stay "Checking..."
         await checkUrl(url);
     }
 
-    // Return normalized list
-    const normalizedUrls = config.urls.map(u => {
-        if (typeof u === 'string') {
-            return { url: u, name: '', usage: '' };
-        }
-        return u;
-    });
-    res.json(normalizedUrls);
+    res.json(getNormalizedUrls(config));
 });
 
 // API: Remove URL
@@ -114,19 +115,12 @@ app.delete('/api/urls', (req, res) => {
 
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
 
-    // Return normalized list
-    const normalizedUrls = config.urls.map(u => {
-        if (typeof u === 'string') {
-            return { url: u, name: '', usage: '' };
-        }
-        return u;
-    });
-    res.json(normalizedUrls);
+    res.json(getNormalizedUrls(config));
 });
 
 // API: Edit URL
 app.put('/api/urls', (req, res) => {
-    const { url, name, usage } = req.body;
+    const { url, name, usage, interval } = req.body;
     if (!url) return res.status(400).send('URL required');
 
     const config = JSON.parse(fs.readFileSync(CONFIG_FILE));
@@ -141,7 +135,8 @@ app.put('/api/urls', (req, res) => {
             return {
                 url: currentUrl,
                 name: name !== undefined ? name : (typeof u === 'object' ? u.name : ''),
-                usage: usage !== undefined ? usage : (typeof u === 'object' ? u.usage : '')
+                usage: usage !== undefined ? usage : (typeof u === 'object' ? u.usage : ''),
+                interval: interval ? parseInt(interval) : (typeof u === 'object' && u.interval ? u.interval : 10)
             };
         }
         return u;
@@ -151,18 +146,32 @@ app.put('/api/urls', (req, res) => {
 
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
 
-    // Return normalized list
-    const normalizedUrls = config.urls.map(u => {
-        if (typeof u === 'string') {
-            return { url: u, name: '', usage: '' };
-        }
-        return u;
-    });
-    res.json(normalizedUrls);
+    res.json(getNormalizedUrls(config));
 });
 
-// In-memory store for latest status
+// API: Bulk update intervals
+app.put('/api/urls/intervals/all', (req, res) => {
+    const { interval } = req.body;
+    if (!interval) return res.status(400).send('Interval required');
+
+    const config = JSON.parse(fs.readFileSync(CONFIG_FILE));
+    const newInterval = parseInt(interval);
+
+    config.urls = config.urls.map(u => {
+        if (typeof u === 'string') {
+            return { url: u, name: '', usage: '', interval: newInterval };
+        }
+        return { ...u, interval: newInterval };
+    });
+
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+
+    res.json(getNormalizedUrls(config));
+});
+
+// In-memory store for latest status and check times
 const lastCheckResults = {};
+const lastCheckTimes = {};
 
 // Helper: Check single URL
 const checkUrl = async (url) => {
@@ -179,8 +188,6 @@ const checkUrl = async (url) => {
         });
         status = 'UP';
     } catch (error) {
-        // Log detailed error for debugging if needed, but keep status simple
-        // console.error(`Check failed for ${url}: ${error.message}`);
         status = 'DOWN';
     }
 
@@ -189,24 +196,31 @@ const checkUrl = async (url) => {
 
     // Update memory
     lastCheckResults[url] = status;
+    lastCheckTimes[url] = Date.now();
     return status;
 };
 
 // Start background job
 const checkAllUrls = async () => {
-    console.log('Running background check...');
     if (!fs.existsSync(CONFIG_FILE)) return;
 
     const config = JSON.parse(fs.readFileSync(CONFIG_FILE));
-    for (const item of config.urls) {
-        const url = typeof item === 'string' ? item : item.url;
-        await checkUrl(url);
+    const normalized = getNormalizedUrls(config);
+
+    const now = Date.now();
+    for (const item of normalized) {
+        const url = item.url;
+        const intervalMs = item.interval * 60 * 1000;
+        const lastCheck = lastCheckTimes[url] || 0;
+
+        if (now - lastCheck >= intervalMs) {
+            await checkUrl(url);
+        }
     }
-    console.log('Background check complete.');
 };
 
-// Schedule: Run every 10 minutes (600000 ms)
-setInterval(checkAllUrls, 600000);
+// Schedule: Run every 1 minute (60000 ms)
+setInterval(checkAllUrls, 60000);
 
 // Run once on startup after short delay
 setTimeout(checkAllUrls, 5000);
