@@ -4,15 +4,33 @@
 
 <div class="page" style="background-color: var(--bg); color: var(--text-primary); min-height: 100vh;">
     <main>
-        <div style="display: flex; justify-content: flex-end; padding: 1rem 2rem; border-bottom: 1px solid #334155;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; border-bottom: 1px solid #334155;">
+            <h1 style="margin: 0; font-size: 1.5rem; color: var(--text-primary); font-weight: 700;">Environment Tracker</h1>
             <AuthorizeView>
                 <Authorized>
-                    <span style="margin-right: 1rem;">@context.User.Identity?.Name</span>
-                    <button @onclick="Logout" style="padding: 0.25rem 0.5rem; background: transparent; border: 1px solid var(--accent); color: var(--accent);">Log out</button>
+                    <div class="user-menu-container" style="position: relative;">
+                        <button class="user-menu-btn" @onclick="ToggleUserMenu" @onfocusout="HideUserMenu" style="background: transparent; border: none; font-family: inherit; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem;">
+                            <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem;">
+                                @GetInitial(context.User.Identity?.Name)
+                            </div>
+                            <span style="font-weight: 500;">@GetFirstName(context.User.Identity?.Name)</span>
+                            <span style="font-size: 0.8rem; margin-top: 2px;">▼</span>
+                        </button>
+
+                        @if (showUserMenu)
+                        {
+                            <div class="user-dropdown" style="position: absolute; right: 0; top: calc(100% + 5px); background: var(--card-bg); border: 1px solid #334155; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4); min-width: 150px; z-index: 50;">
+                                <a href="profile" style="display: block; padding: 0.75rem 1rem; color: var(--text-primary); text-decoration: none; border-bottom: 1px solid #334155; font-size: 0.875rem;">Profile</a>
+                                <button @onclick="Logout" style="display: block; width: 100%; text-align: left; padding: 0.75rem 1rem; background: transparent; border: none; font-family: inherit; color: var(--error); cursor: pointer; font-size: 0.875rem;">Log out</button>
+                            </div>
+                        }
+                    </div>
                 </Authorized>
                 <NotAuthorized>
-                    <a href="login" style="color: var(--accent); margin-right: 1rem; text-decoration: none;">Log In</a>
-                    <a href="register" style="color: var(--accent); text-decoration: none;">Register</a>
+                    <div>
+                        <a href="login" style="color: var(--accent); margin-right: 1rem; text-decoration: none;">Log In</a>
+                        <a href="register" style="color: var(--accent); text-decoration: none;">Register</a>
+                    </div>
                 </NotAuthorized>
             </AuthorizeView>
         </div>
@@ -24,9 +42,44 @@
 </div>
 
 @code {
+    private bool showUserMenu;
+
     private async Task Logout()
     {
         await AuthService.Logout();
         NavigationManager.NavigateTo("/login");
+    }
+
+    private void ToggleUserMenu()
+    {
+        showUserMenu = !showUserMenu;
+    }
+
+    private async Task HideUserMenu()
+    {
+        // Delay to allow clicks inside the menu to process before it hides
+        await Task.Delay(200);
+        showUserMenu = false;
+        StateHasChanged();
+    }
+
+    private string GetFirstName(string? name)
+    {
+        if (string.IsNullOrEmpty(name)) return "User";
+        var parts = name.Split('@');
+        var firstPart = parts[0];
+        if (firstPart.Length > 0)
+        {
+            // Capitalize first letter logic
+            return char.ToUpper(firstPart[0]) + firstPart.Substring(1);
+        }
+        return "User";
+    }
+
+    private string GetInitial(string? name)
+    {
+        var firstName = GetFirstName(name);
+        if (firstName.Length > 0) return firstName.Substring(0, 1).ToUpper();
+        return "U";
     }
 }
