@@ -29,7 +29,8 @@ builder.Services.AddCors(options =>
 
 // Configure Database
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+           .UseSnakeCaseNamingConvention());
 
 // Configure Identity
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
