@@ -4,6 +4,7 @@
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
 @inject HttpClient Http
+@inject IJSRuntime JS
 
 <div class="container">
     <header>
@@ -123,6 +124,8 @@
                 </table>
             </div>
             <div class="modal-actions">
+                <button @onclick="DownloadHistoryCsv" style="background: transparent; border: 1px solid var(--accent); color: var(--accent); margin-right: 0.5rem;" title="Download History CSV">Download History</button>
+                <button @onclick="DownloadRawLogsCsv" style="background: transparent; border: 1px solid var(--accent); color: var(--accent); margin-right: auto;" title="Download Raw Logs CSV">Download Raw Log</button>
                 <button @onclick="() => showHistoryModal = false" style="background: transparent; border: 1px solid #334155;">Close</button>
             </div>
         </div>
@@ -272,5 +275,35 @@
             historyBlocks = await Http.GetFromJsonAsync<List<HistoryBlockDto>>($"api/logs/history?environmentId={id}");
         }
         catch { historyBlocks = new List<HistoryBlockDto>(); }
+    }
+
+    private async Task DownloadHistoryCsv()
+    {
+        if (historyBlocks == null || !historyBlocks.Any()) return;
+        
+        var csv = new System.Text.StringBuilder();
+        csv.AppendLine("Status,Start,End,Duration (mins)");
+        foreach(var b in historyBlocks)
+        {
+            csv.AppendLine($"{b.Status},{b.Start.ToLocalTime():yyyy-MM-dd HH:mm:ss},{b.End.ToLocalTime():yyyy-MM-dd HH:mm:ss},{(b.End - b.Start).TotalMinutes:F1}");
+        }
+        
+        await JS.InvokeVoidAsync("downloadFileFromText", $"history_env_{currentHistoryEnvId}.csv", csv.ToString());
+    }
+
+    private async Task DownloadRawLogsCsv()
+    {
+        try {
+            var rawLogs = await Http.GetFromJsonAsync<List<PingLogDto>>($"api/logs/raw?environmentId={currentHistoryEnvId}");
+            if (rawLogs == null || !rawLogs.Any()) return;
+
+            var csv = new System.Text.StringBuilder();
+            csv.AppendLine("Timestamp,Status");
+            foreach(var l in rawLogs)
+            {
+                csv.AppendLine($"{l.Timestamp.ToLocalTime():yyyy-MM-dd HH:mm:ss},{l.Status}");
+            }
+            await JS.InvokeVoidAsync("downloadFileFromText", $"rawlogs_env_{currentHistoryEnvId}.csv", csv.ToString());
+        } catch { }
     }
 }
