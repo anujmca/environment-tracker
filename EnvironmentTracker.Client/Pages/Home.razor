@@ -1,0 +1,266 @@
+﻿@page "/"
+@using EnvironmentTracker.Shared
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+
+<div class="container">
+    <header>
+        <h1>Environment Tracker</h1>
+        <div class="controls-wrapper">
+            <div class="controls">
+                <input type="text" @bind="newEnv.Url" placeholder="URL (https://example.com)" style="flex: 2; min-width: 250px;" />
+                <input type="text" @bind="newEnv.Name" placeholder="Name (e.g. Production)" />
+                <input type="text" @bind="newEnv.Usage" placeholder="Usage (e.g. QA Testing)" />
+                <input type="number" @bind="newEnv.Interval" placeholder="Interval (mins)" min="1" style="flex: 0 0 100px; min-width: 100px;" />
+                <label style="display:flex; align-items:center; gap:0.5rem; color:var(--text-secondary);">
+                    <input type="checkbox" @bind="newEnv.IsPrivateNetwork" />
+                    Intranet (Client Ping)
+                </label>
+                <button @onclick="AddUrl">Add Environment</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="grid">
+        @if (environments == null)
+        {
+            <p>Loading...</p>
+        }
+        else
+        {
+            @foreach (var env in environments)
+            {
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <div class="name">@(string.IsNullOrEmpty(env.Name) ? env.Url : env.Name)</div>
+                            <div class="usage">@env.Usage</div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="icon-btn" @onclick="() => ViewHistory(env.Id)" title="History">🕒</button>
+                            <button class="icon-btn" @onclick="() => ShowEditModal(env)" title="Edit">✎</button>
+                            <button class="icon-btn delete" @onclick="() => RemoveUrl(env.Id)" title="Remove">×</button>
+                        </div>
+                    </div>
+                    <div class="url-sub">
+                        @env.Url 
+                        @if(env.IsPrivateNetwork){ <span style="color:var(--accent); margin-left:5px;">(Intranet)</span> }
+                    </div>
+                    <div class="interval-sub">↻ Checks every @env.Interval minute@(env.Interval != 1 ? "s" : "")</div>
+                    <div class="status-row" style="margin-top: 0.5rem;">
+                        <span class="status-badge @(env.CurrentStatus?.ToLower() ?? "pending")">@(env.CurrentStatus ?? "PENDING")</span>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">Days Up</div>
+                            <div class="stat-value">@env.DaysUp</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Last Online</div>
+                            <div class="stat-value">@(env.LastOnline?.ToLocalTime().ToString("g") ?? "-")</div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+<!-- Edit Modal -->
+@if (showEditModal)
+{
+    <div class="modal" style="display: flex;">
+        <div class="modal-content">
+            <h2>Edit Environment</h2>
+            <div class="modal-form">
+                <label>Name<input type="text" @bind="editEnv.Name" /></label>
+                <label>Usage<input type="text" @bind="editEnv.Usage" /></label>
+                <label>Check Interval (mins)<input type="number" @bind="editEnv.Interval" min="1" /></label>
+                <label style="flex-direction:row; align-items:center;">
+                    <input type="checkbox" @bind="editEnv.IsPrivateNetwork" /> Intranet (Client Ping)
+                </label>
+                <div class="modal-actions">
+                    <button @onclick="() => showEditModal = false" style="background: transparent; border: 1px solid #334155;">Cancel</button>
+                    <button @onclick="SaveEdit">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- History Modal -->
+@if (showHistoryModal)
+{
+    <div class="modal" style="display: flex;">
+        <div class="modal-content large">
+            <h2>History</h2>
+            <div class="history-scroll">
+                <table class="history-table">
+                    <thead><tr><th>Status</th><th>Start Time</th><th>End Time</th><th>Duration</th></tr></thead>
+                    <tbody>
+                        @if (historyBlocks == null) { <tr><td colspan="4">Loading...</td></tr> }
+                        else if (!historyBlocks.Any()) { <tr><td colspan="4">No history available</td></tr> }
+                        else
+                        {
+                            @foreach (var block in historyBlocks)
+                            {
+                                var durationMs = block.End - block.Start;
+                                var durationMins = (int)durationMs.TotalMinutes;
+                                var durationText = durationMins < 60 ? $"{durationMins}m" : $"{durationMins / 60}h {durationMins % 60}m";
+                                if (durationMins == 0) durationText = "< 1m";
+                                
+                                <tr>
+                                    <td><span class="history-status @block.Status.ToLower()">@block.Status</span></td>
+                                    <td>@block.Start.ToLocalTime().ToString("g")</td>
+                                    <td>@block.End.ToLocalTime().ToString("g")</td>
+                                    <td>@durationText</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-actions">
+                <button @onclick="() => showHistoryModal = false" style="background: transparent; border: 1px solid #334155;">Close</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<EnvironmentConfigDto>? environments;
+    private EnvironmentConfigDto newEnv = new() { Interval = 10 };
+    
+    // Edit Modal State
+    private bool showEditModal;
+    private EnvironmentConfigDto editEnv = new();
+
+    // History Modal State
+    private bool showHistoryModal;
+    private List<HistoryBlockDto>? historyBlocks;
+    private int currentHistoryEnvId;
+
+    // Timer for Client-side pinging and auto-refreshing public status
+    private System.Threading.Timer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEnvironments();
+        // Start polling every 30 seconds
+        _timer = new System.Threading.Timer(async _ => await TimerTick(), null, TimeSpan.Zero, TimeSpan.FromSeconds(30));
+    }
+
+    private async Task LoadEnvironments()
+    {
+        environments = await Http.GetFromJsonAsync<List<EnvironmentConfigDto>>("api/environments");
+        await RefreshStatuses();
+    }
+
+    private async Task TimerTick()
+    {
+        if (environments == null) return;
+
+        bool stateChanged = false;
+
+        foreach (var env in environments)
+        {
+            if (env.IsPrivateNetwork)
+            {
+                // Client-side ping!
+                string status = "DOWN";
+                try
+                {
+                    // Since it's private intranet, we just try to fetch.
+                    var response = await Http.GetAsync(env.Url);
+                    status = response.IsSuccessStatusCode ? "UP" : "DOWN";
+                }
+                catch
+                {
+                    status = "DOWN";
+                }
+
+                if (status != env.CurrentStatus)
+                {
+                    env.CurrentStatus = status;
+                    stateChanged = true;
+                }
+                
+                await Http.PostAsJsonAsync($"api/logs/telemetry?environmentId={env.Id}", new PingLogDto { Status = status });
+            }
+        }
+
+        // We also want to refresh the status of public URLs from the server
+        await RefreshStatuses();
+        
+        if (stateChanged) 
+            await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RefreshStatuses()
+    {
+        if (environments == null) return;
+        
+        foreach(var env in environments)
+        {
+            try {
+                if(!env.IsPrivateNetwork) {
+                    var logs = await Http.GetFromJsonAsync<List<PingLogDto>>($"api/logs/raw?environmentId={env.Id}");
+                    var latest = logs?.FirstOrDefault();
+                    if(latest != null) {
+                        env.CurrentStatus = latest.Status;
+                        env.LastOnline = logs?.Where(l => l.Status == "UP").FirstOrDefault()?.Timestamp;
+                        env.DaysUp = logs?.Where(l => l.Status == "UP").Select(l => l.Timestamp.Date).Distinct().Count() ?? 0;
+                    }
+                }
+            } catch {}
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task AddUrl()
+    {
+        if (string.IsNullOrWhiteSpace(newEnv.Url)) return;
+        try { new Uri(newEnv.Url); } catch { return; } // Basic validation
+
+        await Http.PostAsJsonAsync("api/environments", newEnv);
+        newEnv = new EnvironmentConfigDto { Interval = 10, IsPrivateNetwork = false };
+        await LoadEnvironments();
+    }
+
+    private async Task RemoveUrl(int id)
+    {
+        await Http.DeleteAsync($"api/environments/{id}");
+        await LoadEnvironments();
+    }
+
+    private void ShowEditModal(EnvironmentConfigDto env)
+    {
+        editEnv = new EnvironmentConfigDto
+        {
+            Id = env.Id, Url = env.Url, Name = env.Name, Usage = env.Usage, 
+            Interval = env.Interval, IsPrivateNetwork = env.IsPrivateNetwork
+        };
+        showEditModal = true;
+    }
+
+    private async Task SaveEdit()
+    {
+        await Http.PutAsJsonAsync($"api/environments/{editEnv.Id}", editEnv);
+        showEditModal = false;
+        await LoadEnvironments();
+    }
+
+    private async Task ViewHistory(int id)
+    {
+        currentHistoryEnvId = id;
+        historyBlocks = null;
+        showHistoryModal = true;
+        try
+        {
+            historyBlocks = await Http.GetFromJsonAsync<List<HistoryBlockDto>>($"api/logs/history?environmentId={id}");
+        }
+        catch { historyBlocks = new List<HistoryBlockDto>(); }
+    }
+}

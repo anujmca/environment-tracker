@@ -1,0 +1,32 @@
+﻿@inherits LayoutComponentBase
+@inject EnvironmentTracker.Client.Auth.AuthService AuthService
+@inject NavigationManager NavigationManager
+
+<div class="page" style="background-color: var(--bg); color: var(--text-primary); min-height: 100vh;">
+    <main>
+        <div style="display: flex; justify-content: flex-end; padding: 1rem 2rem; border-bottom: 1px solid #334155;">
+            <AuthorizeView>
+                <Authorized>
+                    <span style="margin-right: 1rem;">@context.User.Identity?.Name</span>
+                    <button @onclick="Logout" style="padding: 0.25rem 0.5rem; background: transparent; border: 1px solid var(--accent); color: var(--accent);">Log out</button>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="login" style="color: var(--accent); margin-right: 1rem; text-decoration: none;">Log In</a>
+                    <a href="register" style="color: var(--accent); text-decoration: none;">Register</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+@code {
+    private async Task Logout()
+    {
+        await AuthService.Logout();
+        NavigationManager.NavigateTo("/login");
+    }
+}

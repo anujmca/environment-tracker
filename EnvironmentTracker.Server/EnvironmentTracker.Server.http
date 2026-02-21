@@ -1,0 +1,6 @@
+@EnvironmentTracker.Server_HostAddress = http://localhost:5069
+
+GET {{EnvironmentTracker.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
