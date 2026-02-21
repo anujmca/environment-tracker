@@ -9,8 +9,9 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-// We point to the Backend Web API which runs on https://localhost:7188
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7188/") });
+// We point to the Backend Web API which is configured in appsettings.json
+var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:7188/";
+builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
 
 // Add Auth services
 builder.Services.AddBlazoredLocalStorage();
