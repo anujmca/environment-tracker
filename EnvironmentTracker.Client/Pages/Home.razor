@@ -59,7 +59,7 @@
                         </div>
                         <div class="stat-item">
                             <div class="stat-label">Last Online</div>
-                            <div class="stat-value">@(env.LastOnline?.ToLocalTime().ToString("g") ?? "-")</div>
+                            <div class="stat-value">@(env.LastOnline?.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss") ?? "-")</div>
                         </div>
                     </div>
                 </div>
