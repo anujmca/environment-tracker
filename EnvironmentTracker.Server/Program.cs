@@ -28,8 +28,17 @@ builder.Services.AddCors(options =>
 });
 
 // Configure Database
+var connString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (!string.IsNullOrEmpty(connString) && (connString.StartsWith("postgres://") || connString.StartsWith("postgresql://")))
+{
+    var uri = new Uri(connString);
+    var userInfo = uri.UserInfo.Split(':');
+    var password = userInfo.Length > 1 ? userInfo[1] : "";
+    connString = $"Host={uri.Host};Database={uri.LocalPath.Substring(1)};Username={userInfo[0]};Password={password};Port={(uri.Port > 0 ? uri.Port : 5432)};SSL Mode=Require;Trust Server Certificate=true;";
+}
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+    options.UseNpgsql(connString)
            .UseSnakeCaseNamingConvention());
 
 // Configure Identity
