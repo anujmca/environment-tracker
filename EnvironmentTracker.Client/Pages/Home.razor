@@ -172,9 +172,19 @@
                 string status = "DOWN";
                 try
                 {
-                    // Since it's private intranet, we just try to fetch.
-                    var response = await Http.GetAsync(env.Url);
-                    status = response.IsSuccessStatusCode ? "UP" : "DOWN";
+                    // Since it's potentially cross-origin (like google.com or private intranet), we use NoCors mode.
+                    // This generates an opaque response (Status code = 0) on success instead of blocking the request.
+                    // Network errors (DNS fail, connection refused) will still throw exceptions.
+                    var request = new HttpRequestMessage(HttpMethod.Get, env.Url);
+                    request.SetBrowserRequestMode(Microsoft.AspNetCore.Components.WebAssembly.Http.BrowserRequestMode.NoCors);
+                    
+                    // We need to disable caching to actually trigger a network request.
+                    request.SetBrowserRequestCache(Microsoft.AspNetCore.Components.WebAssembly.Http.BrowserRequestCache.NoCache);
+
+                    var response = await Http.SendAsync(request);
+                    
+                    // IsSuccessStatusCode is true for 200-299. Opaque responses are 0.
+                    status = response.IsSuccessStatusCode || (int)response.StatusCode == 0 ? "UP" : "DOWN";
                 }
                 catch
                 {
