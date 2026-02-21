@@ -90,7 +90,7 @@ public class AuthController : ControllerBase
         if (userId == null) return Unauthorized();
         var user = await _userManager.FindByIdAsync(userId);
         if (user == null) return NotFound();
-        return Ok(new ProfileDto { FirstName = user.FirstName, LastName = user.LastName });
+        return Ok(new ProfileDto { FirstName = user.FirstName, LastName = user.LastName, Email = user.Email });
     }
 
     [Authorize]
