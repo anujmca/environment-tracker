@@ -234,6 +234,12 @@
     private async Task AddUrl()
     {
         if (string.IsNullOrWhiteSpace(newEnv.Url)) return;
+        
+        if (!newEnv.Url.StartsWith("http://") && !newEnv.Url.StartsWith("https://"))
+        {
+            newEnv.Url = "https://" + newEnv.Url;
+        }
+
         try { new Uri(newEnv.Url); } catch { return; } // Basic validation
 
         await Http.PostAsJsonAsync("api/environments", newEnv);

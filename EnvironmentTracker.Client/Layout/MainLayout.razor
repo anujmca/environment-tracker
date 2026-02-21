@@ -11,9 +11,9 @@
                     <div class="user-menu-container" style="position: relative;">
                         <button class="user-menu-btn" @onclick="ToggleUserMenu" @onfocusout="HideUserMenu" style="background: transparent; border: none; font-family: inherit; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem;">
                             <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem;">
-                                @GetInitial(context.User.Identity?.Name)
+                                @GetInitial(context.User)
                             </div>
-                            <span style="font-weight: 500;">@GetFirstName(context.User.Identity?.Name)</span>
+                            <span style="font-weight: 500;">@GetFirstName(context.User)</span>
                             <span style="font-size: 0.8rem; margin-top: 2px;">▼</span>
                         </button>
 
@@ -63,8 +63,15 @@
         StateHasChanged();
     }
 
-    private string GetFirstName(string? name)
+    private string GetFirstName(System.Security.Claims.ClaimsPrincipal user)
     {
+        var firstNameClaim = user.FindFirst("FirstName")?.Value;
+        if (!string.IsNullOrEmpty(firstNameClaim))
+        {
+            return firstNameClaim;
+        }
+
+        var name = user.Identity?.Name;
         if (string.IsNullOrEmpty(name)) return "User";
         var parts = name.Split('@');
         var firstPart = parts[0];
@@ -76,9 +83,9 @@
         return "User";
     }
 
-    private string GetInitial(string? name)
+    private string GetInitial(System.Security.Claims.ClaimsPrincipal user)
     {
-        var firstName = GetFirstName(name);
+        var firstName = GetFirstName(user);
         if (firstName.Length > 0) return firstName.Substring(0, 1).ToUpper();
         return "U";
     }

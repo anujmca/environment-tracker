@@ -1,0 +1,71 @@
+@page "/profile"
+@using EnvironmentTracker.Shared
+@using System.Net.Http.Json
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@inject HttpClient Http
+@inject EnvironmentTracker.Client.Auth.AuthService AuthService
+
+<div class="container" style="max-width: 600px; margin-top: 2rem;">
+    <h2>My Profile</h2>
+    <div class="card" style="margin-top: 1.5rem;">
+        @if (isLoading)
+        {
+            <p>Loading profile...</p>
+        }
+        else if (profile != null)
+        {
+            @if (showSuccessMessage)
+            {
+                <div style="background: rgba(16, 185, 129, 0.1); color: var(--success); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    Profile updated successfully!
+                </div>
+            }
+
+            <EditForm Model="profile" OnValidSubmit="SaveProfile">
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    <label style="display: flex; flex-direction: column; gap: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                        First Name
+                        <InputText @bind-Value="profile.FirstName" style="width: 100%; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white;" />
+                    </label>
+
+                    <label style="display: flex; flex-direction: column; gap: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                        Last Name
+                        <InputText @bind-Value="profile.LastName" style="width: 100%; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white;" />
+                    </label>
+
+                    <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+                        <button type="submit">Save Changes</button>
+                    </div>
+                </div>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    private ProfileDto? profile;
+    private bool isLoading = true;
+    private bool showSuccessMessage = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            profile = await Http.GetFromJsonAsync<ProfileDto>("api/auth/profile");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SaveProfile()
+    {
+        showSuccessMessage = false;
+        if (profile != null)
+        {
+            await AuthService.UpdateProfile(profile);
+            showSuccessMessage = true;
+        }
+    }
+}

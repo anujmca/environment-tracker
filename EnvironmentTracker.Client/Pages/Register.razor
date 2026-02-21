@@ -16,6 +16,16 @@
     <ValidationSummary />
 
     <div class="form-group mb-3">
+        <label for="firstName">First Name</label>
+        <InputText id="firstName" class="form-control" @bind-Value="User.FirstName" />
+    </div>
+
+    <div class="form-group mb-3">
+        <label for="lastName">Last Name</label>
+        <InputText id="lastName" class="form-control" @bind-Value="User.LastName" />
+    </div>
+
+    <div class="form-group mb-3">
         <label for="email">Email</label>
         <InputText id="email" class="form-control" @bind-Value="User.Email" />
     </div>

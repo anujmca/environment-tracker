@@ -7,6 +7,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
+using Microsoft.AspNetCore.Authorization;
+
 namespace EnvironmentTracker.Server.Controllers;
 
 [ApiController]
@@ -27,7 +29,7 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterRequest request)
     {
-        var user = new ApplicationUser { UserName = request.Email, Email = request.Email };
+        var user = new ApplicationUser { UserName = request.Email, Email = request.Email, FirstName = request.FirstName, LastName = request.LastName };
         var result = await _userManager.CreateAsync(user, request.Password);
 
         if (result.Succeeded)
@@ -52,12 +54,19 @@ public class AuthController : ControllerBase
         var jwtSettings = _configuration.GetSection("JwtSettings");
         var secret = jwtSettings["Secret"]!;
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id),
             new Claim(ClaimTypes.Email, user.Email!),
+            new Claim(ClaimTypes.Name, user.Email!),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
+
+        if (!string.IsNullOrEmpty(user.FirstName))
+        {
+            claims.Add(new Claim("FirstName", user.FirstName));
+            claims.Add(new Claim(ClaimTypes.GivenName, user.FirstName));
+        }
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -71,5 +80,34 @@ public class AuthController : ControllerBase
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    [Authorize]
+    [HttpGet("profile")]
+    public async Task<IActionResult> GetProfile()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null) return NotFound();
+        return Ok(new ProfileDto { FirstName = user.FirstName, LastName = user.LastName });
+    }
+
+    [Authorize]
+    [HttpPut("profile")]
+    public async Task<IActionResult> UpdateProfile(ProfileDto dto)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null) return NotFound();
+
+        user.FirstName = dto.FirstName;
+        user.LastName = dto.LastName;
+        await _userManager.UpdateAsync(user);
+        
+        // Return a fresh token so the client can update its Claim immediately
+        var token = GenerateJwtToken(user);
+        return Ok(new AuthResponse { Token = token });
     }
 }

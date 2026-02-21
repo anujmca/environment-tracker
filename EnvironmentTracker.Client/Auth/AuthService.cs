@@ -45,4 +45,19 @@ public class AuthService
         ((CustomAuthStateProvider)_authStateProvider).MarkUserAsLoggedOut();
         _http.DefaultRequestHeaders.Authorization = null;
     }
+
+    public async Task<bool> UpdateProfile(ProfileDto request)
+    {
+        var result = await _http.PutAsJsonAsync("api/auth/profile", request);
+        
+        if (result.IsSuccessStatusCode)
+        {
+            var response = await result.Content.ReadFromJsonAsync<AuthResponse>();
+            await _localStorage.SetItemAsync("authToken", response!.Token);
+            ((CustomAuthStateProvider)_authStateProvider).MarkUserAsAuthenticated(response.Token);
+            _http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("bearer", response.Token);
+            return true;
+        }
+        return false;
+    }
 }
