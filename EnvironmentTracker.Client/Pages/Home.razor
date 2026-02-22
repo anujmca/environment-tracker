@@ -235,14 +235,14 @@
         foreach(var env in environments)
         {
             try {
-                if(!env.IsPrivateNetwork) {
-                    var logs = await Http.GetFromJsonAsync<List<PingLogDto>>($"api/logs/raw?environmentId={env.Id}");
-                    var latest = logs?.FirstOrDefault();
-                    if(latest != null) {
+                var logs = await Http.GetFromJsonAsync<List<PingLogDto>>($"api/logs/raw?environmentId={env.Id}");
+                var latest = logs?.FirstOrDefault();
+                if(latest != null) {
+                    if(!env.IsPrivateNetwork) {
                         env.CurrentStatus = latest.Status;
-                        env.LastOnline = logs?.Where(l => l.Status == "UP").FirstOrDefault()?.Timestamp;
-                        env.DaysUp = logs?.Where(l => l.Status == "UP").Select(l => l.Timestamp.Date).Distinct().Count() ?? 0;
                     }
+                    env.LastOnline = logs?.Where(l => l.Status == "UP").FirstOrDefault()?.Timestamp;
+                    env.DaysUp = logs?.Where(l => l.Status == "UP").Select(l => l.Timestamp.ToLocalTime().Date).Distinct().Count() ?? 0;
                 }
             } catch {}
         }
