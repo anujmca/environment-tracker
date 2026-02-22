@@ -9,6 +9,18 @@ I have successfully ported the existing Node.js environment tracker to a robust 
 3. **Authentication**: Secured with ASP.NET Core Identity & custom JWT Bearer tokens. 
 4. **Data Isolation (Multi-Tenancy)**: The schema enforces user-level isolation. You will only see the environments that you create on your account.
 
+## Why .NET 8 & Blazor?
+
+When redesigning this application for a multi-tenant cloud SaaS deployment, the architectural stack was deliberately chosen to maximize developer productivity, type safety, and runtime performance over other popular stacks.
+
+### Why not Node.js and React?
+While the original proof-of-concept was built in Node.js, migrating to a mature SaaS required robust architectural patterns. Node.js with React typically involves managing two entirely separate ecosystems: npm for the backend, and npm (often with a different bundler like Webpack/Vite) for the frontend. You have to write duplicate interfaces in TypeScript to keep the API and UI models in sync. 
+By choosing **.NET 8 and Blazor WebAssembly**, we unlock **Full-Stack C#**. We are able to use a shared `EnvironmentTracker.Shared` class library. When we define `EnvironmentConfigDto` once in C#, both the backend API and the frontend WebAssembly client use the exact same compiled object. There is zero drift between frontend and backend contracts. Furthermore, Blazor WebAssembly compiles down to raw byte code running natively in the browser, offering near-native performance for parsing large history datasets directly in the client without the overhead of the JavaScript Virtual Machine.
+
+### Why not Django (Python)?
+Django is fantastic for rapid prototyping and "batteries-included" monoliths, but it inherently struggles with the real-time continuous background processing required by an Uptime Tracker application. Django is built on a synchronous WSGI request-response model. To build our `PingService` that constantly fires HTTP requests every few seconds, Django requires massive external dependencies like Celery, Redis message queues, and separate worker dynos.
+**ASP.NET Core** has native, lightweight dependency injection and built-in `IHostedService` interfaces. Our application runs the API web server and the continuous background pinging loop inside the *exact same memory space* and container without any external messaging queues or infrastructure complexity whatsoever. Furthermore, Entity Framework Core offers compile-time type-safety over LINQ queries which Django's ORM cannot match, safely preventing runtime SQL errors before deployment.
+
 ## Pinging Logic Upgrades
 
 The architecture was significantly enhanced to handle both public servers and private intranet endpoints:
