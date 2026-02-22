@@ -2,44 +2,53 @@
 @inject EnvironmentTracker.Client.Auth.AuthService AuthService
 @inject NavigationManager NavigationManager
 
-<div class="page" style="background-color: var(--bg); color: var(--text-primary); min-height: 100vh;">
-    <main>
+<div class="page" style="background-color: var(--bg); color: var(--text-primary); min-height: 100vh; display: flex; flex-direction: column;">
+    <main style="display: flex; flex-direction: column; flex: 1;">
         <div class="top-bar">
-            <h1 style="margin: 0; font-size: 1.5rem; font-weight: 700;">
-                <a href="/" style="color: var(--text-primary); text-decoration: none;">Environment Tracker</a>
-            </h1>
-            <AuthorizeView>
-                <Authorized>
-                    <div class="user-menu-container" style="position: relative;">
-                        <button class="user-menu-btn" @onclick="ToggleUserMenu" @onfocusout="HideUserMenu" style="background: transparent; border: none; font-family: inherit; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem;">
-                            <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem;">
-                                @GetInitial(context.User)
-                            </div>
-                            <span style="font-weight: 500;">@GetFirstName(context.User)</span>
-                            <span style="font-size: 0.8rem; margin-top: 2px;">▼</span>
-                        </button>
+            <div class="container" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <h1 style="margin: 0; font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 0.75rem;">
+                    <img src="/logo.png" alt="Logo" style="height: 48px; width: 48px;" />
+                    <a href="/" style="color: var(--text-primary); text-decoration: none;">Environment Tracker</a>
+                </h1>
+                <AuthorizeView>
+                    <Authorized>
+                        <div class="user-menu-container" style="position: relative;">
+                            <button class="user-menu-btn" @onclick="ToggleUserMenu" @onfocusout="HideUserMenu" style="background: transparent; border: none; font-family: inherit; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem;">
+                                <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem;">
+                                    @GetInitial(context.User)
+                                </div>
+                                <span style="font-weight: 500;">@GetFirstName(context.User)</span>
+                                <span style="font-size: 0.8rem; margin-top: 2px;">▼</span>
+                            </button>
 
-                        @if (showUserMenu)
-                        {
-                            <div class="user-dropdown" style="position: absolute; right: 0; top: calc(100% + 5px); background: var(--card-bg); border: 1px solid #334155; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4); min-width: 150px; z-index: 50;">
-                                <a href="profile" style="display: block; padding: 0.75rem 1rem; color: var(--text-primary); text-decoration: none; border-bottom: 1px solid #334155; font-size: 0.875rem;">Profile</a>
-                                <button @onclick="Logout" style="display: block; width: 100%; text-align: left; padding: 0.75rem 1rem; background: transparent; border: none; font-family: inherit; color: var(--error); cursor: pointer; font-size: 0.875rem;">Log out</button>
-                            </div>
-                        }
-                    </div>
-                </Authorized>
-                <NotAuthorized>
-                    <div>
-                        <a href="login" style="color: var(--accent); margin-right: 1rem; text-decoration: none;">Log In</a>
-                        <a href="register" style="color: var(--accent); text-decoration: none;">Register</a>
-                    </div>
-                </NotAuthorized>
-            </AuthorizeView>
+                            @if (showUserMenu)
+                            {
+                                <div class="user-dropdown" style="position: absolute; right: 0; top: calc(100% + 5px); background: var(--card-bg); border: 1px solid #334155; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4); min-width: 150px; z-index: 50;">
+                                    <a href="profile" style="display: block; padding: 0.75rem 1rem; color: var(--text-primary); text-decoration: none; border-bottom: 1px solid #334155; font-size: 0.875rem;">Profile</a>
+                                    <button @onclick="Logout" style="display: block; width: 100%; text-align: left; padding: 0.75rem 1rem; background: transparent; border: none; font-family: inherit; color: var(--error); cursor: pointer; font-size: 0.875rem;">Log out</button>
+                                </div>
+                            }
+                        </div>
+                    </Authorized>
+                    <NotAuthorized>
+                        <div>
+                            <a href="login" style="color: var(--accent); margin-right: 1rem; text-decoration: none;">Log In</a>
+                            <a href="register" style="color: var(--accent); text-decoration: none;">Register</a>
+                        </div>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
         </div>
 
-        <article class="content px-4">
+        <article class="content" style="flex: 1; padding: 2rem 0;">
             @Body
         </article>
+
+        <footer style="text-align: center; border-top: 1px solid #334155; margin-top: auto; background-color: var(--card-bg);">
+            <div class="container" style="padding: 0.5rem; color: var(--text-secondary); font-size: 0.75rem;">
+                Built by <a href="https://www.linkedin.com/in/anujchauhan/" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">Anuj Chauhan</a> &copy; @DateTime.Now.Year
+            </div>
+        </footer>
     </main>
 </div>
 
