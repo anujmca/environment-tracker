@@ -73,7 +73,12 @@
 {
     <div class="modal" style="display: flex;">
         <div class="modal-content">
-            <h2>Edit Environment</h2>
+            <div style="margin-bottom: 1rem;">
+                <h2 style="margin-bottom: 0.25rem;">Edit Environment</h2>
+                <div style="font-size: 0.875rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <span style="font-family: monospace; background: rgba(0,0,0,0.2); padding: 0.125rem 0.375rem; border-radius: 4px;">@editEnv.Url</span>
+                </div>
+            </div>
             <div class="modal-form">
                 <label>Name<input type="text" @bind="editEnv.Name" /></label>
                 <label>Usage<input type="text" @bind="editEnv.Usage" /></label>
@@ -95,7 +100,20 @@
 {
     <div class="modal" style="display: flex;">
         <div class="modal-content large">
-            <h2>History</h2>
+            <div style="margin-bottom: 1rem;">
+                <h2 style="margin-bottom: 0.25rem;">History</h2>
+                @{
+                    var historyEnv = environments?.FirstOrDefault(e => e.Id == currentHistoryEnvId);
+                    if (historyEnv != null)
+                    {
+                        <div style="font-size: 0.875rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                            <strong>@(string.IsNullOrEmpty(historyEnv.Name) ? "Unnamed" : historyEnv.Name)</strong>
+                            <span style="opacity: 0.5;">|</span>
+                            <span style="font-family: monospace; background: rgba(0,0,0,0.2); padding: 0.125rem 0.375rem; border-radius: 4px;">@historyEnv.Url</span>
+                        </div>
+                    }
+                }
+            </div>
             <div class="history-scroll">
                 <table class="history-table">
                     <thead><tr><th>Status</th><th>Start Time</th><th>End Time</th><th>Duration</th></tr></thead>
